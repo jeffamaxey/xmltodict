@@ -126,17 +126,22 @@ class XMLToDictTestCase(unittest.TestCase):
             self.assertEqual(path, [('a', {'x': 'y'}), ('b', None)])
             self.assertEqual(item, str(cb.count))
             return True
+
         cb.count = 0
-        parse((n for n in '<a x="y"><b>1</b><b>2</b><b>3</b></a>'),
-              item_depth=2, item_callback=cb)
+        parse(
+            iter('<a x="y"><b>1</b><b>2</b><b>3</b></a>'),
+            item_depth=2,
+            item_callback=cb,
+        )
         self.assertEqual(cb.count, 3)
 
     def test_postprocessor(self):
         def postprocessor(path, key, value):
             try:
-                return key + ':int', int(value)
+                return f'{key}:int', int(value)
             except (ValueError, TypeError):
                 return key, value
+
         self.assertEqual({'a': {'b:int': [1, 2], 'b': 'x'}},
                          parse('<a><b>1</b><b>2</b><b>x</b></a>',
                                postprocessor=postprocessor))
@@ -144,9 +149,10 @@ class XMLToDictTestCase(unittest.TestCase):
     def test_postprocessor_attribute(self):
         def postprocessor(path, key, value):
             try:
-                return key + ':int', int(value)
+                return f'{key}:int', int(value)
             except (ValueError, TypeError):
                 return key, value
+
         self.assertEqual({'a': {'@b:int': 1}},
                          parse('<a b="1"/>',
                                postprocessor=postprocessor))
@@ -167,15 +173,14 @@ class XMLToDictTestCase(unittest.TestCase):
             value = unichr(39321)
         except NameError:
             value = chr(39321)
-        self.assertEqual({'a': value},
-                         parse('<a>%s</a>' % value))
+        self.assertEqual({'a': value}, parse(f'<a>{value}</a>'))
 
     def test_encoded_string(self):
         try:
             value = unichr(39321)
         except NameError:
             value = chr(39321)
-        xml = '<a>%s</a>' % value
+        xml = f'<a>{value}</a>'
         self.assertEqual(parse(xml),
                          parse(xml.encode('utf-8')))
 
@@ -328,9 +333,7 @@ class XMLToDictTestCase(unittest.TestCase):
 
         def force_list(path, key, value):
             """Only return True for servers/server, but not for skip/server."""
-            if key != 'server':
-                return False
-            return path and path[-1][0] == 'servers'
+            return False if key != 'server' else path and path[-1][0] == 'servers'
 
         expectedResult = {
             'config': {
